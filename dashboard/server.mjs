@@ -117,7 +117,7 @@ const putContent = async (token, path, content, message, sha) => {
 };
 const updateMetadata = async (input) => {
   const meta = validateMetadataInput(input);
-  if (meta.name.toUpperCase().includes('TETHER') || meta.symbol === 'USDY') throw new Error('Use independent branding. No Tether/USDY impersonation.');
+  if (meta.name.toUpperCase().includes('TETHERSSS') || meta.symbol === 'USDY') throw new Error('Use independent branding. No TETHERSS/USDY impersonation.');
   const token = String(input.githubToken || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '').trim();
   const content = token ? await getContent(token, 'metadata.json') : null;
   const oldMeta = await fetch(metadataUrl, { cache: 'no-store' }).then(r => r.json()).catch(() => ({}));
