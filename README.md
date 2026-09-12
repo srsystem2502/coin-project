@@ -1,9 +1,9 @@
-# HERUSD coin project
+# USDTHER coin project
 
 Solana devnet token asset repo.
 
-- Name: Her USD
-- Symbol: HERUSD
+- Name: USDTHER
+- Symbol: USDT
 - Network: Solana Devnet
 - Metadata: mutable token metadata planned
 - Not affiliated with Tether, USDT, or any issuer of USDT.
