@@ -1,0 +1,9 @@
+node_modules/
+payer-keypair.json
+mint-keypair.json
+usdther-payer-keypair.json
+usdther-mint-keypair.json
+.env
+dashboard/config.json
+dashboard/metadata-preview.json
+dashboard/qa/
