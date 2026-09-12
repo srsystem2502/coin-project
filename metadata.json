@@ -1,0 +1,26 @@
+{
+  "name": "Her USD",
+  "symbol": "HERUSD",
+  "description": "Independent Solana devnet test token. Not affiliated with Tether, USDT, or any issuer of USDT.",
+  "image": "https://raw.githubusercontent.com/srsystem2502/coin-project/main/herusd-logo.svg",
+  "external_url": "https://github.com/srsystem2502/coin-project",
+  "attributes": [
+    {
+      "trait_type": "Network",
+      "value": "Solana Devnet"
+    },
+    {
+      "trait_type": "Status",
+      "value": "Test token"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "files": [
+      {
+        "uri": "https://raw.githubusercontent.com/srsystem2502/coin-project/main/herusd-logo.svg",
+        "type": "image/svg+xml"
+      }
+    ]
+  }
+}
