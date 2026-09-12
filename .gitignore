@@ -7,3 +7,5 @@ usdther-mint-keypair.json
 dashboard/config.json
 dashboard/metadata-preview.json
 dashboard/qa/
+.env.local
+.vercel/
