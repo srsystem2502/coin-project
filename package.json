@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dashboard": "node dashboard/server.mjs",
+    "build:api": "esbuild api/index-src.js --bundle --platform=node --target=node22 --format=esm --outfile=api/index.js --banner:js=\"import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);\"",
     "test": "node dashboard/self-check.mjs"
   },
   "keywords": [],
@@ -19,5 +20,8 @@
     "@metaplex-foundation/umi-uploader-irys": "^1.5.0",
     "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }
