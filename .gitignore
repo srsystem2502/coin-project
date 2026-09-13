@@ -10,3 +10,4 @@ dashboard/qa/
 .env.local
 .vercel/
 api/index-src.js
+!api/status-self-check.mjs

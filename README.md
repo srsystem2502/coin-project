@@ -3,9 +3,9 @@
 Solana devnet token asset repo.
 
 - Name: USDTHER
-- Symbol: USDT
+- Symbol: USDY
 - Network: Solana Devnet
-- Metadata: mutable token metadata planned
+- Metadata: mutable token metadata
 - Not affiliated with Tether, USDT, or any issuer of USDT.
 
 Files:

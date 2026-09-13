@@ -1,7 +1,6 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/status", "destination": "/api/index.js?path=status" },
     { "source": "/api/metadata", "destination": "/api/index.js?path=metadata" },
     { "source": "/api/mint", "destination": "/api/index.js?path=mint" },
     { "source": "/api/transfer", "destination": "/api/index.js?path=transfer" },
