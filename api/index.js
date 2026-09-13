@@ -1,5 +1,4 @@
 import { readFile, writeFile } from 'fs/promises';
-import { join } from 'path';
 import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAccount, getAssociatedTokenAddress, getMint, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
@@ -7,45 +6,112 @@ import { createSignerFromKeypair, keypairIdentity, none, publicKey, some } from 
 import { fetchDigitalAsset, mplTokenMetadata, updateV1 } from '@metaplex-foundation/mpl-token-metadata';
 import { createTokenIfMissing, findAssociatedTokenPda, mintTokensTo, transferTokens } from '@metaplex-foundation/mpl-toolbox';
 import { fromWeb3JsKeypair } from '@metaplex-foundation/umi-web3js-adapters';
-import { cleanConfig, parseUiAmount, requirePublicKey, validateMetadataInput } from '../dashboard/lib.mjs';
 
-const rpc = process.env.RPC_URL || 'https://api.devnet.solana.com';
-const mint = new PublicKey(process.env.MINT_ADDRESS || '8CT28vWpZNebJrcuBjQTErMoUXsxQr2nj1gaUsrqURrw');
-const owner = new PublicKey(process.env.OWNER_WALLET || '8uvJhjUsUPguLgJLX5bkqWUhkdVS7SwiqGkCLv1nbqqW');
-const metadataUrl = process.env.METADATA_URL || 'https://raw.githubusercontent.com/srsystem2502/coin-project/main/metadata.json';
-const githubRepo = process.env.GITHUB_REPO || 'srsystem2502/coin-project';
 const githubApi = 'https://api.github.com';
-const connection = new Connection(rpc, 'confirmed');
 const configFallbackPath = '/tmp/coin-dashboard-config.json';
 
-const respond = (res, status, data) => res.status(status).json(data);
+function parseUiAmount(value, decimals) {
+  const text = String(value ?? '').trim();
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 18) throw new Error('Invalid decimals');
+  if (!new RegExp(`^\\d+(\\.\\d{1,${decimals}})?$`).test(text)) throw new Error(`Amount must be a positive decimal with max ${decimals} decimals`);
+  const [whole, fraction = ''] = text.split('.');
+  const amount = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, '0') || '0');
+  if (amount <= 0n) throw new Error('Amount must be greater than 0');
+  return amount;
+}
+
+function requirePublicKey(value, label = 'wallet') {
+  try { return new PublicKey(String(value ?? '').trim()).toBase58(); }
+  catch { throw new Error(`${label} must be a valid Solana address`); }
+}
+
+function validateMetadataInput(input) {
+  const name = String(input.name ?? '').trim();
+  const symbol = String(input.symbol ?? '').trim().toUpperCase();
+  const description = String(input.description ?? '').trim();
+  const image = String(input.image ?? '').trim();
+  if (!name || name.length > 32) throw new Error('Name required, max 32 chars');
+  if (!/^[A-Z0-9]{2,10}$/.test(symbol)) throw new Error('Symbol must be 2-10 chars: A-Z/0-9');
+  if (!description || description.length > 500) throw new Error('Description required, max 500 chars');
+  if (!/^https:\/\//.test(image)) throw new Error('Logo URL must start with https://');
+  return { name, symbol, description, image };
+}
+
+function cleanConfig(input, fallback = {}) {
+  const out = { ...fallback };
+  for (const key of ['adminWallet', 'treasuryWallet', 'feeReceiverWallet', 'liquidityWallet']) {
+    const value = String(input[key] ?? out[key] ?? '').trim();
+    out[key] = value ? requirePublicKey(value, key) : '';
+  }
+  out.targetBuyPrice = String(input.targetBuyPrice ?? out.targetBuyPrice ?? '').trim();
+  out.targetSellPrice = String(input.targetSellPrice ?? out.targetSellPrice ?? '').trim();
+  out.liquidityPair = String(input.liquidityPair ?? out.liquidityPair ?? 'TOKEN/SOL').trim().slice(0, 32);
+  out.liquidityNotes = String(input.liquidityNotes ?? out.liquidityNotes ?? '').trim().slice(0, 1000);
+  out.updatedAt = new Date().toISOString();
+  return out;
+}
+
+const respond = (res, status, data) => {
+  const body = JSON.stringify(data, (_, v) => typeof v === 'bigint' ? v.toString() : v);
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(body);
+};
+
+const parseBody = (req) => {
+  if (!req.body) return {};
+  if (typeof req.body === 'string') return JSON.parse(req.body || '{}');
+  return req.body;
+};
+
 const mustAdmin = (req) => {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected) throw new Error('ADMIN_PASSWORD env missing');
   if (req.headers['x-admin-password'] !== expected) throw new Error('Unauthorized');
 };
-const loadPayer = async () => {
+
+const settings = () => {
+  const rpc = process.env.RPC_URL || 'https://api.devnet.solana.com';
+  const mint = new PublicKey(process.env.MINT_ADDRESS || '8CT28vWpZNebJrcuBjQTErMoUXsxQr2nj1gaUsrqURrw');
+  const owner = new PublicKey(process.env.OWNER_WALLET || '8uvJhjUsUPguLgJLX5bkqWUhkdVS7SwiqGkCLv1nbqqW');
+  const metadataUrl = process.env.METADATA_URL || 'https://raw.githubusercontent.com/srsystem2502/coin-project/main/metadata.json';
+  const githubRepo = process.env.GITHUB_REPO || 'srsystem2502/coin-project';
+  const connection = new Connection(rpc, 'confirmed');
+  return { rpc, mint, owner, metadataUrl, githubRepo, connection };
+};
+
+const loadPayer = () => {
   const raw = process.env.PAYER_KEYPAIR_JSON;
   if (!raw) throw new Error('PAYER_KEYPAIR_JSON env missing');
-  return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw)));
+  const secret = JSON.parse(raw);
+  if (!Array.isArray(secret) || secret.length !== 64) throw new Error('PAYER_KEYPAIR_JSON must be a 64-number JSON array');
+  return Keypair.fromSecretKey(Uint8Array.from(secret));
 };
-const umiWithPayer = async () => {
+
+const umiWithPayer = () => {
+  const { rpc } = settings();
   const umi = createUmi(rpc).use(mplTokenMetadata());
-  const payer = createSignerFromKeypair(umi, fromWeb3JsKeypair(await loadPayer()));
+  const payer = createSignerFromKeypair(umi, fromWeb3JsKeypair(loadPayer()));
   umi.use(keypairIdentity(payer));
   return { umi, payer };
 };
+
 const ui = (raw, decimals) => (Number(raw) / 10 ** decimals).toString();
+
 const readConfig = async () => {
   if (process.env.DASHBOARD_CONFIG_JSON) return JSON.parse(process.env.DASHBOARD_CONFIG_JSON);
   return readFile(configFallbackPath, 'utf8').then(JSON.parse).catch(() => ({}));
 };
+
 const writeConfig = async (config) => writeFile(configFallbackPath, JSON.stringify(config, null, 2));
+
 const fetchStatus = async () => {
+  const { rpc, mint, owner, metadataUrl, githubRepo, connection } = settings();
   const mintInfo = await getMint(connection, mint, 'confirmed', TOKEN_PROGRAM_ID);
   const ownerAta = await getAssociatedTokenAddress(mint, owner);
   const asset = await fetchDigitalAsset(createUmi(rpc).use(mplTokenMetadata()), publicKey(mint.toBase58()));
-  const payer = await loadPayer();
+  const payer = loadPayer();
   const payerAta = await getAssociatedTokenAddress(mint, payer.publicKey);
   const [payerSol, ownerToken, payerToken, remoteMetadata, config] = await Promise.all([
     connection.getBalance(payer.publicKey),
@@ -65,14 +131,17 @@ const fetchStatus = async () => {
     remoteMetadata, metadataUrl, githubRepo, config,
   };
 };
+
 const ghHeaders = (token) => ({ Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'coin-dashboard' });
 const getContent = async (token, path) => {
+  const { githubRepo } = settings();
   const r = await fetch(`${githubApi}/repos/${githubRepo}/contents/${encodeURIComponent(path)}?ref=main`, { headers: ghHeaders(token) });
   if (r.status === 404) return null;
   if (!r.ok) throw new Error(`GitHub get ${path} failed: ${r.status} ${await r.text()}`);
   return r.json();
 };
 const putContent = async (token, path, content, message, sha) => {
+  const { githubRepo } = settings();
   const r = await fetch(`${githubApi}/repos/${githubRepo}/contents/${encodeURIComponent(path)}`, {
     method: 'PUT', headers: ghHeaders(token),
     body: JSON.stringify({ message, content: Buffer.from(content).toString('base64'), branch: 'main', ...(sha ? { sha } : {}) }),
@@ -80,7 +149,9 @@ const putContent = async (token, path, content, message, sha) => {
   if (!r.ok) throw new Error(`GitHub put ${path} failed: ${r.status} ${await r.text()}`);
   return r.json();
 };
+
 const updateMetadata = async (input) => {
+  const { mint, metadataUrl, githubRepo } = settings();
   const meta = validateMetadataInput(input);
   if (meta.name.toUpperCase().includes('TETHER') || meta.symbol === 'USDT') throw new Error('Use independent branding. No Tether/USDT impersonation.');
   const token = String(process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '').trim();
@@ -91,12 +162,14 @@ const updateMetadata = async (input) => {
     properties: { ...(oldMeta.properties || {}), category: 'image', files: [{ uri: meta.image, type: meta.image.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 'image/png' }] },
   };
   if (token) await putContent(token, 'metadata.json', `${JSON.stringify(nextMeta, null, 2)}\n`, `Update token metadata to ${meta.name}`, content?.sha);
-  const { umi, payer } = await umiWithPayer();
+  const { umi, payer } = umiWithPayer();
   await updateV1(umi, { mint: publicKey(mint.toBase58()), authority: payer, payer, data: some({ name: meta.name, symbol: meta.symbol, uri: metadataUrl, sellerFeeBasisPoints: 0, creators: none() }), isMutable: some(true) }).sendAndConfirm(umi);
   return { githubUpdated: Boolean(token), metadata: nextMeta, status: await fetchStatus() };
 };
+
 const mintMore = async ({ amount }) => {
-  const { umi, payer } = await umiWithPayer();
+  const { mint, owner, connection } = settings();
+  const { umi, payer } = umiWithPayer();
   const decimals = (await getMint(connection, mint)).decimals;
   const token = findAssociatedTokenPda(umi, { mint: publicKey(mint.toBase58()), owner: publicKey(owner.toBase58()) });
   await createTokenIfMissing(umi, { payer, mint: publicKey(mint.toBase58()), owner: publicKey(owner.toBase58()), ata: token })
@@ -104,8 +177,10 @@ const mintMore = async ({ amount }) => {
     .sendAndConfirm(umi);
   return fetchStatus();
 };
+
 const transfer = async ({ to, amount }) => {
-  const { umi, payer } = await umiWithPayer();
+  const { mint, connection } = settings();
+  const { umi, payer } = umiWithPayer();
   const mintPk = publicKey(mint.toBase58());
   const decimals = (await getMint(connection, mint)).decimals;
   const toWallet = publicKey(requirePublicKey(to, 'destination wallet'));
@@ -118,21 +193,31 @@ const transfer = async ({ to, amount }) => {
     .sendAndConfirm(umi);
   return fetchStatus();
 };
+
 const saveConfig = async (input) => {
   const next = cleanConfig(input, await readConfig());
   await writeConfig(next);
   return next;
 };
 
+const routeFrom = (req) => {
+  const q = req.query?.path;
+  if (Array.isArray(q)) return q[0] || 'status';
+  if (typeof q === 'string' && q) return q.split('/')[0] || 'status';
+  const url = req.url || '';
+  return url.split('/api/')[1]?.split('?')[0]?.split('/')[0] || 'status';
+};
+
 export default async function handler(req, res) {
   try {
     mustAdmin(req);
-    const route = req.query.path?.[0] || 'status';
+    const route = routeFrom(req);
+    const body = parseBody(req);
     if (req.method === 'GET' && route === 'status') return respond(res, 200, await fetchStatus());
-    if (req.method === 'POST' && route === 'metadata') return respond(res, 200, await updateMetadata(req.body || {}));
-    if (req.method === 'POST' && route === 'mint') return respond(res, 200, await mintMore(req.body || {}));
-    if (req.method === 'POST' && route === 'transfer') return respond(res, 200, await transfer(req.body || {}));
-    if (req.method === 'POST' && route === 'config') return respond(res, 200, await saveConfig(req.body || {}));
+    if (req.method === 'POST' && route === 'metadata') return respond(res, 200, await updateMetadata(body));
+    if (req.method === 'POST' && route === 'mint') return respond(res, 200, await mintMore(body));
+    if (req.method === 'POST' && route === 'transfer') return respond(res, 200, await transfer(body));
+    if (req.method === 'POST' && route === 'config') return respond(res, 200, await saveConfig(body));
     return respond(res, 404, { error: 'Not found' });
   } catch (error) {
     return respond(res, error.message === 'Unauthorized' ? 401 : 400, { error: error.message });
