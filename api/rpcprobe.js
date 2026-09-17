@@ -1,9 +1,10 @@
-const endpoints = [
-  process.env.RPC_URL || 'https://api.devnet.solana.com',
-  'https://api.devnet.solana.com',
-  'https://solana-devnet.g.alchemy.com/v2/demo',
-  'https://rpc.ankr.com/solana_devnet',
-  'https://devnet.helius-rpc.com/?api-key=public',
+const networkId = () => process.env.SOLANA_NETWORK || (String(process.env.RPC_URL || '').includes('mainnet') ? 'mainnet-beta' : 'devnet');
+const endpoints = () => [
+  process.env.RPC_URL,
+  networkId() === 'mainnet-beta' ? 'https://api.mainnet-beta.solana.com' : 'https://api.devnet.solana.com',
+  networkId() === 'mainnet-beta' ? null : 'https://solana-devnet.g.alchemy.com/v2/demo',
+  networkId() === 'mainnet-beta' ? null : 'https://rpc.ankr.com/solana_devnet',
+  networkId() === 'mainnet-beta' ? null : 'https://devnet.helius-rpc.com/?api-key=public',
 ];
 
 async function probe(url) {
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
     return res.end(JSON.stringify({ error: 'Unauthorized' }));
   }
   const results = [];
-  for (const endpoint of [...new Set(endpoints.filter(Boolean))]) results.push(await probe(endpoint));
+  for (const endpoint of [...new Set(endpoints().filter(Boolean))]) results.push(await probe(endpoint));
   res.statusCode = 200;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify({ results }, null, 2));

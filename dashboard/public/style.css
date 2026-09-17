@@ -76,6 +76,7 @@ h3 { color: var(--navy); font-size: 19px; line-height: 1.2; letter-spacing: -.01
   cursor: pointer;
 }
 .quietButton { background: white; color: var(--navy); border-color: var(--line); }
+.explorerButton[hidden] { display: none !important; }
 button:hover { background: var(--navy-2); color: white; }
 button:disabled { opacity: .58; cursor: wait; }
 .dangerButton { background: var(--danger); border-color: var(--danger); }
@@ -161,6 +162,18 @@ input, textarea {
 input:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29, 78, 216, .12); }
 textarea { resize: vertical; }
 .hint { margin: -4px 0 14px; color: var(--muted); font-size: 12px; }
+.authorityNote, .transactionResult {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  background: #f8fbff;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.transactionResult { margin: 0 0 12px; }
+.transactionResult a { color: var(--blue); font-weight: 700; text-decoration: underline; }
 .facts { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 10px 14px; margin: 0; }
 .facts dt { color: var(--muted); font-size: 13px; font-weight: 650; }
 .facts dd { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #1f2a3a; }

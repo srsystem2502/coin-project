@@ -40,3 +40,22 @@ export function cleanConfig(input, fallback = {}) {
   out.updatedAt = new Date().toISOString();
   return out;
 }
+
+export function networkLabel(networkId) {
+  if (networkId === 'mainnet-beta') return 'Solana Mainnet';
+  if (networkId === 'testnet') return 'Solana Testnet';
+  return 'Solana Devnet';
+}
+
+function solscanPath(path, networkId) {
+  const cluster = networkId === 'mainnet-beta' ? '' : `?cluster=${networkId || 'devnet'}`;
+  return `https://solscan.io/${path}${cluster}`;
+}
+
+export function solscanTransactionUrl(signature, networkId) {
+  return solscanPath(`tx/${signature}`, networkId);
+}
+
+export function solscanTokenUrl(mint, networkId) {
+  return solscanPath(`token/${mint}`, networkId);
+}

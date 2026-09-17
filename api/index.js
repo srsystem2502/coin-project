@@ -64568,6 +64568,15 @@ function cleanConfig(input, fallback = {}) {
   out.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
   return out;
 }
+var networkId = () => process.env.SOLANA_NETWORK || (String(process.env.RPC_URL || "").includes("mainnet") ? "mainnet-beta" : "devnet");
+var networkLabel = (id) => id === "mainnet-beta" ? "Solana Mainnet" : id === "testnet" ? "Solana Testnet" : "Solana Devnet";
+var solscanPath = (path, id = networkId()) => `https://solscan.io/${path}${id === "mainnet-beta" ? "" : `?cluster=${id}`}`;
+var metadataVersionUrl = (url) => `${url.split("?")[0]}?v=${Date.now()}`;
+var signatureText = (signature) => typeof signature === "string" ? signature : base58.deserialize(signature)[0];
+var txInfo = (signature) => {
+  const text = signatureText(signature);
+  return { signature: text, explorerUrl: solscanPath(`tx/${text}`) };
+};
 var respond = (res, status, data) => {
   const body = JSON.stringify(data, (_, v) => typeof v === "bigint" ? v.toString() : v);
   res.statusCode = status;
@@ -64586,13 +64595,14 @@ var mustAdmin = (req) => {
   if (req.headers["x-admin-password"] !== expected) throw new Error("Unauthorized");
 };
 var settings = () => {
-  const rpc = process.env.RPC_URL || "https://api.devnet.solana.com";
+  const id = networkId();
+  const rpc = process.env.RPC_URL || (id === "mainnet-beta" ? "https://api.mainnet-beta.solana.com" : "https://api.devnet.solana.com");
   const mint = new import_web312.PublicKey(process.env.MINT_ADDRESS || "8CT28vWpZNebJrcuBjQTErMoUXsxQr2nj1gaUsrqURrw");
   const owner = new import_web312.PublicKey(process.env.OWNER_WALLET || "8uvJhjUsUPguLgJLX5bkqWUhkdVS7SwiqGkCLv1nbqqW");
   const metadataUrl = process.env.METADATA_URL || "https://raw.githubusercontent.com/srsystem2502/coin-project/main/metadata.json";
   const githubRepo = process.env.GITHUB_REPO || "srsystem2502/coin-project";
   const connection = new import_web312.Connection(rpc, "confirmed");
-  return { rpc, mint, owner, metadataUrl, githubRepo, connection };
+  return { id, rpc, mint, owner, metadataUrl, githubRepo, connection };
 };
 var loadPayer = () => {
   const raw = process.env.PAYER_KEYPAIR_JSON;
@@ -64615,7 +64625,7 @@ var readConfig = async () => {
 };
 var writeConfig = async (config) => writeFile(configFallbackPath, JSON.stringify(config, null, 2));
 var fetchStatus = async () => {
-  const { rpc, mint, owner, metadataUrl, githubRepo, connection } = settings();
+  const { id, rpc, mint, owner, metadataUrl, githubRepo, connection } = settings();
   const mintInfo = await getMint(connection, mint, "confirmed", TOKEN_PROGRAM_ID);
   const ownerAta = await getAssociatedTokenAddress(mint, owner);
   const asset = await (0, import_mpl_token_metadata.fetchDigitalAsset)(createUmi2(rpc).use((0, import_mpl_token_metadata.mplTokenMetadata)()), publicKey2(mint.toBase58()));
@@ -64628,13 +64638,18 @@ var fetchStatus = async () => {
     fetch(metadataUrl, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
     readConfig()
   ]);
+  const payerAddress = payer.publicKey.toBase58();
+  const authorityAddress = (authority) => authority?.toBase58?.() ?? String(authority || "");
+  const isPayer = (authority) => Boolean(authority && authorityAddress(authority) === payerAddress);
   return {
-    network: "Solana Devnet",
+    networkId: id,
+    network: networkLabel(id),
+    tokenExplorerUrl: solscanPath(`token/${mint.toBase58()}`, id),
     rpc,
     mint: mint.toBase58(),
     owner: owner.toBase58(),
     ownerAta: ownerAta.toBase58(),
-    payer: payer.publicKey.toBase58(),
+    payer: payerAddress,
     payerAta: payerAta.toBase58(),
     payerSol: payerSol / import_web312.LAMPORTS_PER_SOL,
     decimals: mintInfo.decimals,
@@ -64646,10 +64661,16 @@ var fetchStatus = async () => {
     ownerBalanceRaw: ownerToken?.amount.toString() ?? "0",
     payerTokenBalance: payerToken ? ui(payerToken.amount, mintInfo.decimals) : "0",
     payerTokenBalanceRaw: payerToken?.amount.toString() ?? "0",
-    onchainMetadata: { name: asset.metadata.name, symbol: asset.metadata.symbol, uri: asset.metadata.uri, updateAuthority: asset.metadata.updateAuthority, isMutable: asset.metadata.isMutable },
+    onchainMetadata: { name: asset.metadata.name, symbol: asset.metadata.symbol, uri: asset.metadata.uri, updateAuthority: authorityAddress(asset.metadata.updateAuthority), isMutable: asset.metadata.isMutable },
     remoteMetadata,
     metadataUrl,
     githubRepo,
+    controls: {
+      canUpdateMetadata: Boolean(asset.metadata.isMutable && isPayer(asset.metadata.updateAuthority)),
+      canMint: isPayer(mintInfo.mintAuthority),
+      canFreeze: isPayer(mintInfo.freezeAuthority),
+      canTransferFromPayer: Boolean(payerToken)
+    },
     config
   };
 };
@@ -64687,16 +64708,17 @@ var updateMetadata = async (input) => {
   if (token) await putContent(token, "metadata.json", `${JSON.stringify(nextMeta, null, 2)}
 `, `Update token metadata to ${meta.name}`, content?.sha);
   const { umi, payer } = umiWithPayer();
-  await (0, import_mpl_token_metadata.updateV1)(umi, { mint: publicKey2(mint.toBase58()), authority: payer, payer, data: some({ name: meta.name, symbol: meta.symbol, uri: metadataUrl, sellerFeeBasisPoints: 0, creators: none() }), isMutable: some(true) }).sendAndConfirm(umi);
-  return { githubUpdated: Boolean(token), metadata: nextMeta, status: await fetchStatus() };
+  const nextUri = metadataVersionUrl(metadataUrl);
+  const tx = await (0, import_mpl_token_metadata.updateV1)(umi, { mint: publicKey2(mint.toBase58()), authority: payer, payer, data: some({ name: meta.name, symbol: meta.symbol, uri: nextUri, sellerFeeBasisPoints: 0, creators: none() }), isMutable: some(true) }).sendAndConfirm(umi);
+  return { githubUpdated: Boolean(token), metadata: nextMeta, metadataUri: nextUri, transaction: txInfo(tx.signature), status: await fetchStatus() };
 };
 var mintMore = async ({ amount }) => {
   const { mint, owner, connection } = settings();
   const { umi, payer } = umiWithPayer();
   const decimals = (await getMint(connection, mint)).decimals;
   const token = (0, import_mpl_toolbox.findAssociatedTokenPda)(umi, { mint: publicKey2(mint.toBase58()), owner: publicKey2(owner.toBase58()) });
-  await (0, import_mpl_toolbox.createTokenIfMissing)(umi, { payer, mint: publicKey2(mint.toBase58()), owner: publicKey2(owner.toBase58()), ata: token }).add((0, import_mpl_toolbox.mintTokensTo)(umi, { mint: publicKey2(mint.toBase58()), token, mintAuthority: payer, amount: parseUiAmount(amount, decimals) })).sendAndConfirm(umi);
-  return fetchStatus();
+  const tx = await (0, import_mpl_toolbox.createTokenIfMissing)(umi, { payer, mint: publicKey2(mint.toBase58()), owner: publicKey2(owner.toBase58()), ata: token }).add((0, import_mpl_toolbox.mintTokensTo)(umi, { mint: publicKey2(mint.toBase58()), token, mintAuthority: payer, amount: parseUiAmount(amount, decimals) })).sendAndConfirm(umi);
+  return { transaction: txInfo(tx.signature), status: await fetchStatus() };
 };
 var transfer = async ({ to, amount }) => {
   const { mint, connection } = settings();
@@ -64706,8 +64728,8 @@ var transfer = async ({ to, amount }) => {
   const toWallet = publicKey2(requirePublicKey(to, "destination wallet"));
   const source = (0, import_mpl_toolbox.findAssociatedTokenPda)(umi, { mint: mintPk, owner: payer.publicKey });
   const destination = (0, import_mpl_toolbox.findAssociatedTokenPda)(umi, { mint: mintPk, owner: toWallet });
-  await (0, import_mpl_toolbox.createTokenIfMissing)(umi, { payer, mint: mintPk, owner: payer.publicKey, ata: source }).add((0, import_mpl_toolbox.mintTokensTo)(umi, { mint: mintPk, token: source, mintAuthority: payer, amount: parseUiAmount(amount, decimals) })).add((0, import_mpl_toolbox.createTokenIfMissing)(umi, { payer, mint: mintPk, owner: toWallet, ata: destination })).add((0, import_mpl_toolbox.transferTokens)(umi, { source, destination, authority: payer, amount: parseUiAmount(amount, decimals) })).sendAndConfirm(umi);
-  return fetchStatus();
+  const tx = await (0, import_mpl_toolbox.createTokenIfMissing)(umi, { payer, mint: mintPk, owner: payer.publicKey, ata: source }).add((0, import_mpl_toolbox.mintTokensTo)(umi, { mint: mintPk, token: source, mintAuthority: payer, amount: parseUiAmount(amount, decimals) })).add((0, import_mpl_toolbox.createTokenIfMissing)(umi, { payer, mint: mintPk, owner: toWallet, ata: destination })).add((0, import_mpl_toolbox.transferTokens)(umi, { source, destination, authority: payer, amount: parseUiAmount(amount, decimals) })).sendAndConfirm(umi);
+  return { transaction: txInfo(tx.signature), status: await fetchStatus() };
 };
 var saveConfig = async (input) => {
   const next = cleanConfig(input, await readConfig());

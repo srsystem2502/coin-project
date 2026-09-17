@@ -15,6 +15,7 @@
       </a>
       <div class="topActions">
         <span id="networkBadge" class="networkBadge">DEVNET</span>
+        <a id="tokenExplorerLink" class="quietButton explorerButton" target="_blank" rel="noreferrer" hidden>Lihat di Solscan</a>
         <button id="refreshBtn" class="quietButton" type="button">Refresh</button>
       </div>
     </header>
@@ -49,11 +50,12 @@
       <article class="panel statusPanel">
         <div class="sectionHead"><div><p class="eyebrow">Read only</p><h3>Status token</h3></div><span class="tag">On-chain</span></div>
         <dl class="facts" id="facts"></dl>
+        <p class="authorityNote" id="authorityNote">Memuat status authority...</p>
       </article>
 
       <form class="panel metadataPanel" id="metadataForm">
         <div class="sectionHead"><div><p class="eyebrow">Identity</p><h3>Atur tampilan COin</h3></div><span class="tag">Metadata</span></div>
-        <p class="sectionNote">Nama, symbol, logo, dan penjelasan token. Berlaku jika update authority masih aktif.</p>
+        <p class="sectionNote">Nama dan symbol diubah on-chain. Wallet membaca metadata baru setelah indexer/cache wallet refresh.</p>
         <div class="fieldGrid">
           <label>Nama coin<input name="name" maxlength="32" required placeholder="COin"></label>
           <label>Symbol<input name="symbol" maxlength="10" required placeholder="COIN"></label>
@@ -98,6 +100,7 @@
 
     <section class="panel logPanel">
       <div class="sectionHead"><div><p class="eyebrow">System output</p><h3>Log aktivitas</h3></div><span class="tag">Read only</span></div>
+      <p id="transactionResult" class="transactionResult" hidden><a id="transactionLink" target="_blank" rel="noreferrer"></a></p>
       <pre id="log">Ready.</pre>
     </section>
   </main>

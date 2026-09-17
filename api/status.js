@@ -15,10 +15,13 @@ const json = (res, status, data) => {
 };
 
 const uniq = (values) => [...new Set(values.filter(Boolean))];
+const networkId = () => process.env.SOLANA_NETWORK || (String(process.env.RPC_URL || '').includes('mainnet') ? 'mainnet-beta' : 'devnet');
+const networkLabel = (id) => id === 'mainnet-beta' ? 'Solana Mainnet' : id === 'testnet' ? 'Solana Testnet' : 'Solana Devnet';
+const solscanPath = (path, id = networkId()) => `https://solscan.io/${path}${id === 'mainnet-beta' ? '' : `?cluster=${id}`}`;
 const endpoints = () => uniq([
   process.env.RPC_URL,
-  'https://api.devnet.solana.com',
-  'https://devnet.helius-rpc.com/?api-key=public',
+  networkId() === 'mainnet-beta' ? 'https://api.mainnet-beta.solana.com' : 'https://api.devnet.solana.com',
+  networkId() === 'mainnet-beta' ? null : 'https://devnet.helius-rpc.com/?api-key=public',
 ]);
 
 function b58(bytes) {
@@ -178,8 +181,12 @@ async function status(endpoint) {
     payer ? rpc(endpoint, 'getBalance', [payer]).then((r) => r.value / 1_000_000_000) : null,
     payer ? tokenAccount(endpoint, payer, mint, decimals).catch(() => ({ address: null, amount: '0', uiAmount: '0' })) : { address: null, amount: '0', uiAmount: '0' },
   ]);
+  const id = networkId();
+  const payerMatches = (authority) => Boolean(payer && authority === payer);
   return {
-    network: 'Solana Devnet',
+    networkId: id,
+    network: networkLabel(id),
+    tokenExplorerUrl: solscanPath(`token/${mint}`, id),
     mint,
     owner,
     ownerAta: ownerToken.address,
@@ -199,6 +206,12 @@ async function status(endpoint) {
     remoteMetadata,
     metadataUrl,
     githubRepo,
+    controls: {
+      canUpdateMetadata: Boolean(metadata?.isMutable && payerMatches(metadata.updateAuthority)),
+      canMint: payerMatches(mintAccount.mintAuthority),
+      canFreeze: payerMatches(mintAccount.freezeAuthority),
+      canTransferFromPayer: Boolean(payerToken.address),
+    },
     config,
   };
 }

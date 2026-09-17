@@ -23,4 +23,8 @@ assert.equal(data.mint, process.env.MINT_ADDRESS);
 assert.equal(data.supply, '1000000');
 assert.equal(data.ownerBalance, '1000000');
 assert.equal(data.onchainMetadata.symbol, 'USDY');
+assert.equal(data.networkId, 'devnet');
+assert.equal(data.network, 'Solana Devnet');
+assert.ok(data.tokenExplorerUrl.endsWith('?cluster=devnet'));
+assert.equal(typeof data.controls.canUpdateMetadata, 'boolean');
 console.log('status self-check passed');

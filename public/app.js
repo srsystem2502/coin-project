@@ -6,6 +6,19 @@ const short = (value) => {
 const escapeAttr = (value) => String(value ?? '').replaceAll('"', '&quot;');
 const copyButton = (value) => value ? `<button class="copyBtn" type="button" data-copy="${escapeAttr(value)}">Copy</button>` : '';
 const log = (value) => { $('#log').textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+const setTransaction = (tx) => {
+  const box = $('#transactionResult');
+  const link = $('#transactionLink');
+  if (!tx?.explorerUrl) {
+    box.hidden = true;
+    link.removeAttribute('href');
+    link.textContent = '';
+    return;
+  }
+  box.hidden = false;
+  link.href = tx.explorerUrl;
+  link.textContent = `Transaksi on-chain: ${tx.signature}`;
+};
 const adminHeaders = () => {
   const password = localStorage.getItem('coin_dashboard_admin_password') || '';
   return password ? { 'x-admin-password': password } : {};
@@ -39,9 +52,24 @@ function paintSummary(meta) {
   $('#metricOwnerBalance').textContent = state.ownerBalance || '0';
   $('#metricRpc').textContent = short(state.rpc || '-');
   $('#networkBadge').textContent = /mainnet/i.test(state.network || '') ? 'MAINNET' : 'DEVNET';
+  const explorer = $('#tokenExplorerLink');
+  explorer.hidden = !state.tokenExplorerUrl;
+  explorer.href = state.tokenExplorerUrl || '#';
   $('#lastUpdated').textContent = new Date().toLocaleString('id-ID');
   $('#tokenName').textContent = state.onchainMetadata?.name || meta.name || 'COin';
   $('#tokenSymbol').textContent = `${state.onchainMetadata?.symbol || meta.symbol || '-'} · ${state.network || 'Solana'}`;
+}
+function paintControls() {
+  const controls = state.controls || {};
+  const entries = [
+    ['Metadata', controls.canUpdateMetadata, 'ubah nama/symbol/logo'],
+    ['Mint', controls.canMint, 'tambah supply'],
+    ['Freeze', controls.canFreeze, 'bekukan token account'],
+    ['Transfer payer', controls.canTransferFromPayer, 'kirim dari wallet payer'],
+  ];
+  $('#authorityNote').textContent = entries.map(([name, ok, detail]) => `${ok ? '✓' : '×'} ${name}: ${detail}`).join(' · ');
+  $('#metadataForm button[type="submit"]').disabled = controls.canUpdateMetadata === false;
+  $('#mintForm button[type="submit"]').disabled = controls.canMint === false;
 }
 function paintLogo(meta) {
   const logo = $('#tokenLogo');
@@ -63,6 +91,7 @@ async function refresh() {
     const meta = state.remoteMetadata || state.onchainMetadata || {};
     paintSummary(meta);
     paintLogo(meta);
+    paintControls();
     $('#facts').innerHTML = [
       fact('Mint', state.mint, true),
       fact('Owner wallet', state.owner, true),
@@ -100,8 +129,9 @@ async function bind(formId, url, after = refresh) {
     try {
       const result = await post(url, readForm(form));
       const message = url === '/api/metadata'
-        ? { saved: true, githubUpdated: result.githubUpdated, note: result.githubUpdated ? 'metadata.json GitHub updated' : 'No GITHUB_TOKEN env. On-chain updated only.' }
+        ? { saved: true, githubUpdated: result.githubUpdated, metadataUri: result.metadataUri, transaction: result.transaction, note: result.githubUpdated ? 'metadata.json GitHub updated. Wallet/indexer may need cache refresh.' : 'No GITHUB_TOKEN env. On-chain updated only.' }
         : result;
+      setTransaction(result.transaction);
       log(message);
       if (after) await after();
       if (formId !== '#metadataForm' && formId !== '#configForm') form.reset();
