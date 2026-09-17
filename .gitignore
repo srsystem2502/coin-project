@@ -6,6 +6,8 @@ usdther-mint-keypair.json
 mainnet-payer-keypair.json
 mainnet-mint-keypair.json
 mainnet-result.json
+tron-artifact.json
+tron-result.json
 .env
 dashboard/config.json
 dashboard/metadata-preview.json
