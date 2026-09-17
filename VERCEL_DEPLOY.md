@@ -49,6 +49,23 @@ Redeploy latest production deployment
 
 Open Vercel URL. Dashboard prompts for `ADMIN_PASSWORD` once and stores it in browser localStorage.
 
+## Mainnet deploy helper
+
+Generate local mainnet payer/mint keypairs, then fund payer:
+
+```text
+npm run mainnet:prepare
+```
+
+After funding payer with SOL:
+
+```text
+npm run mainnet:status
+npm run mainnet:deploy
+```
+
+Never commit `mainnet-payer-keypair.json`, `mainnet-mint-keypair.json`, or `mainnet-result.json`.
+
 ## 4. Verify
 
 Expected:

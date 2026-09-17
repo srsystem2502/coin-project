@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dashboard": "node dashboard/server.mjs",
+    "mainnet:prepare": "node scripts/mainnet-token.mjs prepare",
+    "mainnet:status": "node scripts/mainnet-token.mjs status",
+    "mainnet:deploy": "node scripts/mainnet-token.mjs deploy",
     "build:api": "esbuild api/index-src.js --bundle --platform=node --target=node22 --format=esm --outfile=api/index.js --banner:js=\"import { createRequire as __createRequire } from 'module'; const require = __createRequire(import.meta.url);\"",
     "test": "node dashboard/self-check.mjs && node api/status-self-check.mjs"
   },

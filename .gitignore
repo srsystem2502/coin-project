@@ -3,6 +3,9 @@ payer-keypair.json
 mint-keypair.json
 usdther-payer-keypair.json
 usdther-mint-keypair.json
+mainnet-payer-keypair.json
+mainnet-mint-keypair.json
+mainnet-result.json
 .env
 dashboard/config.json
 dashboard/metadata-preview.json
