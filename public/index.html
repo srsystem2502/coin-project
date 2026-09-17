@@ -7,166 +7,100 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <div class="appShell">
-    <aside class="sidebar" aria-label="Navigasi dashboard">
-      <a class="brand" href="#top" aria-label="COin dashboard">
+  <main class="shell" id="top">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="COin Dashboard">
         <span class="brandMark">CO</span>
-        <span>
-          <strong>COin</strong>
-          <small>Control Dashboard</small>
-        </span>
+        <span><strong>COin</strong><small>Token control center</small></span>
       </a>
-      <nav class="sideNav">
-        <a href="#overview" class="active">Overview</a>
-        <a href="#metadata">Metadata</a>
-        <a href="#mint">Supply</a>
-        <a href="#transfer">Transfer</a>
-        <a href="#launch">Launch config</a>
-      </nav>
-      <div class="sideNote">
-        <span>Network</span>
-        <strong id="networkBadge">DEVNET</strong>
+      <div class="topActions">
+        <span id="networkBadge" class="networkBadge">DEVNET</span>
+        <button id="refreshBtn" class="quietButton" type="button">Refresh</button>
       </div>
-    </aside>
+    </header>
 
-    <main class="content" id="top">
-      <header class="topbar">
+    <section class="intro" aria-labelledby="pageTitle">
+      <div>
+        <p class="eyebrow">Solana token management</p>
+        <h1 id="pageTitle">Satu panel. Semua kontrol COin.</h1>
+        <p class="lede">Edit identitas token, catat fungsi COin, mint, distribusi, dan siapkan launch dari dashboard ini.</p>
+      </div>
+      <div class="liveState"><span></span><b>Live status</b><small id="lastUpdated">Memuat data</small></div>
+    </section>
+
+    <section class="tokenSummary" aria-label="Ringkasan token">
+      <div class="tokenIdentity">
+        <div class="logoBox"><img id="tokenLogo" alt="Logo token" class="logo" hidden><span id="logoFallback">CO</span></div>
         <div>
-          <p class="eyebrow">Solana token control</p>
-          <h1>COin Dashboard</h1>
-          <p class="muted">Pantau supply, wallet, metadata, dan rencana liquidity dari satu panel.</p>
+          <p class="eyebrow">Token aktif</p>
+          <h2 id="tokenName">Memuat...</h2>
+          <p id="tokenSymbol" class="tokenSymbol">-</p>
+          <p class="tokenHint">Token original COin. Bukan stablecoin atau token pihak lain.</p>
         </div>
-        <button id="refreshBtn" class="ghostButton" type="button">Refresh data</button>
-      </header>
+      </div>
+      <div class="metrics">
+        <div><span>Total supply</span><strong id="metricSupply">-</strong></div>
+        <div><span>Owner balance</span><strong id="metricOwnerBalance">-</strong></div>
+        <div><span>RPC aktif</span><strong id="metricRpc">-</strong></div>
+      </div>
+    </section>
 
-      <section class="heroPanel" id="overview">
-        <div class="tokenIdentity">
-          <div class="logoBox">
-            <img id="tokenLogo" alt="Token logo" class="logo" hidden>
-            <span id="logoFallback">USDY</span>
-          </div>
-          <div>
-            <p class="eyebrow">Token aktif</p>
-            <h2 id="tokenName">Loading...</h2>
-            <p id="tokenSymbol" class="tokenSymbol">-</p>
-            <div class="pillRow">
-              <span class="pill">Mutable metadata</span>
-              <span class="pill warnPill">Devnet asset</span>
-            </div>
-          </div>
+    <section class="workspace">
+      <article class="panel statusPanel">
+        <div class="sectionHead"><div><p class="eyebrow">Read only</p><h3>Status token</h3></div><span class="tag">On-chain</span></div>
+        <dl class="facts" id="facts"></dl>
+      </article>
+
+      <form class="panel metadataPanel" id="metadataForm">
+        <div class="sectionHead"><div><p class="eyebrow">Identity</p><h3>Atur tampilan COin</h3></div><span class="tag">Metadata</span></div>
+        <p class="sectionNote">Nama, symbol, logo, dan penjelasan token. Berlaku jika update authority masih aktif.</p>
+        <div class="fieldGrid">
+          <label>Nama coin<input name="name" maxlength="32" required placeholder="COin"></label>
+          <label>Symbol<input name="symbol" maxlength="10" required placeholder="COIN"></label>
         </div>
-        <div class="metricGrid" aria-label="Ringkasan token">
-          <article class="metricCard">
-            <span>Supply</span>
-            <strong id="metricSupply">-</strong>
-          </article>
-          <article class="metricCard">
-            <span>Owner balance</span>
-            <strong id="metricOwnerBalance">-</strong>
-          </article>
-          <article class="metricCard">
-            <span>RPC</span>
-            <strong id="metricRpc">-</strong>
-          </article>
+        <label>Logo URL<input name="image" type="url" required placeholder="https://..."></label>
+        <label>Coin untuk apa?<textarea name="description" rows="5" maxlength="500" required placeholder="Contoh: COin digunakan sebagai token utilitas untuk reward komunitas dan fitur internal project."></textarea></label>
+        <p class="hint">Gunakan penjelasan jujur. Jangan klaim nilai, afiliasi, atau fungsi yang belum ada.</p>
+        <button type="submit">Simpan metadata token</button>
+      </form>
+
+      <form class="panel" id="mintForm">
+        <div class="sectionHead"><div><p class="eyebrow">Supply</p><h3>Mint tambahan</h3></div><span class="tag danger">Sensitif</span></div>
+        <p class="sectionNote">Tambah supply ke wallet utama. Supply bertambah permanen setelah transaksi berhasil.</p>
+        <label>Jumlah COin<input name="amount" inputmode="decimal" placeholder="Contoh: 1000" required></label>
+        <button type="submit" class="dangerButton">Mint ke wallet utama</button>
+      </form>
+
+      <form class="panel" id="transferForm">
+        <div class="sectionHead"><div><p class="eyebrow">Distribution</p><h3>Kirim COin</h3></div><span class="tag danger">On-chain</span></div>
+        <p class="sectionNote">Kirim COin baru ke wallet Solana tujuan. Tes nominal kecil dulu. Payer perlu SOL devnet untuk fee.</p>
+        <label>Wallet tujuan Solana<input name="to" autocomplete="off" spellcheck="false" required placeholder="Paste public address wallet tujuan"></label>
+        <label>Jumlah COin<input name="amount" inputmode="decimal" placeholder="Contoh: 1" required></label>
+        <button type="submit">Kirim COin</button>
+      </form>
+
+      <form class="panel configPanel" id="configForm">
+        <div class="sectionHead"><div><p class="eyebrow">Launch notes</p><h3>Konfigurasi project</h3></div><span class="tag">Internal</span></div>
+        <p class="sectionNote">Catatan dashboard. Bukan liquidity pool atau harga on-chain.</p>
+        <div class="fieldGrid">
+          <label>Admin wallet<input name="adminWallet" autocomplete="off"></label>
+          <label>Treasury wallet<input name="treasuryWallet" autocomplete="off"></label>
+          <label>Fee receiver wallet<input name="feeReceiverWallet" autocomplete="off"></label>
+          <label>Liquidity wallet<input name="liquidityWallet" autocomplete="off"></label>
+          <label>Target buy price<input name="targetBuyPrice" placeholder="Contoh: 0.01 USDC"></label>
+          <label>Target sell price<input name="targetSellPrice" placeholder="Contoh: 0.009 USDC"></label>
         </div>
-      </section>
+        <label>Liquidity pair<input name="liquidityPair" placeholder="Contoh: COIN/SOL"></label>
+        <label>Catatan launch<textarea name="liquidityNotes" rows="4" placeholder="Contoh: Buat liquidity pool setelah token mainnet final."></textarea></label>
+        <button type="submit">Simpan konfigurasi</button>
+      </form>
+    </section>
 
-      <section class="grid overviewGrid">
-        <article class="card statusCard">
-          <div class="sectionHead">
-            <div>
-              <p class="eyebrow dark">Live status</p>
-              <h3>Status token</h3>
-            </div>
-            <span class="statusDot">Live</span>
-          </div>
-          <dl class="facts" id="facts"></dl>
-        </article>
-        <article class="card warning">
-          <p class="eyebrow dark">Catatan aman</p>
-          <h3>Batas fitur token sekarang</h3>
-          <p>Classic SPL devnet bisa ganti metadata, mint, dan transfer. Token ini tetap enak muncul di Phantom.</p>
-          <p>Max/min tx on-chain butuh token final lain seperti Solana Token-2022 atau ERC-20 custom.</p>
-        </article>
-      </section>
-
-      <section class="grid actionGrid">
-        <form class="card formCard" id="metadataForm">
-          <div class="sectionHead">
-            <div>
-              <p class="eyebrow dark">Branding</p>
-              <h3>Update nama/logo</h3>
-            </div>
-            <span class="safeTag">metadata</span>
-          </div>
-          <label>Nama token <input name="name" maxlength="32" required></label>
-          <label>Symbol <input name="symbol" maxlength="10" required></label>
-          <label>Logo URL <input name="image" type="url" required></label>
-          <label>Description <textarea name="description" rows="4" maxlength="500" required></textarea></label>
-          <p class="hint">GitHub token disimpan di Vercel env, bukan di form publik.</p>
-          <button type="submit">Update metadata on-chain</button>
-        </form>
-
-        <form class="card formCard dangerCard" id="mintForm">
-          <div class="sectionHead">
-            <div>
-              <p class="eyebrow dark">Supply control</p>
-              <h3>Mint supply tambahan</h3>
-            </div>
-            <span class="dangerTag">hati-hati</span>
-          </div>
-          <label>Jumlah token <input name="amount" inputmode="decimal" placeholder="1000" required></label>
-          <button type="submit">Mint ke wallet utama</button>
-        </form>
-
-        <form class="card formCard dangerCard" id="transferForm">
-          <div class="sectionHead">
-            <div>
-              <p class="eyebrow dark">Distribution</p>
-              <h3>Transfer token</h3>
-            </div>
-            <span class="dangerTag">transfer</span>
-          </div>
-          <label>Wallet tujuan Solana <input name="to" required></label>
-          <label>Jumlah token <input name="amount" inputmode="decimal" placeholder="10" required></label>
-          <button type="submit">Mint lalu transfer ke wallet tujuan</button>
-        </form>
-
-        <form class="card formCard" id="configForm">
-          <div class="sectionHead">
-            <div>
-              <p class="eyebrow dark">Launch plan</p>
-              <h3>Wallet & liquidity config</h3>
-            </div>
-            <span class="safeTag">internal</span>
-          </div>
-          <label>Admin wallet <input name="adminWallet"></label>
-          <label>Treasury wallet <input name="treasuryWallet"></label>
-          <label>Fee receiver wallet <input name="feeReceiverWallet"></label>
-          <label>Liquidity wallet <input name="liquidityWallet"></label>
-          <div class="splitFields">
-            <label>Target buy price <input name="targetBuyPrice" placeholder="contoh 0.01 USDC"></label>
-            <label>Target sell price <input name="targetSellPrice" placeholder="contoh 0.009 USDC"></label>
-          </div>
-          <label>Liquidity pair <input name="liquidityPair" placeholder="USDY/SOL"></label>
-          <label>Liquidity notes <textarea name="liquidityNotes" rows="4"></textarea></label>
-          <button type="submit">Simpan config</button>
-        </form>
-      </section>
-
-      <section class="card logCard">
-        <div class="sectionHead">
-          <div>
-            <p class="eyebrow dark">System output</p>
-            <h3>Log</h3>
-          </div>
-          <span id="lastUpdated" class="muted smallText">Belum dimuat</span>
-        </div>
-        <pre id="log">Ready.</pre>
-      </section>
-    </main>
-  </div>
-
+    <section class="panel logPanel">
+      <div class="sectionHead"><div><p class="eyebrow">System output</p><h3>Log aktivitas</h3></div><span class="tag">Read only</span></div>
+      <pre id="log">Ready.</pre>
+    </section>
+  </main>
   <script src="/app.js" type="module"></script>
 </body>
 </html>

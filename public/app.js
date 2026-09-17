@@ -3,7 +3,8 @@ const short = (value) => {
   const text = String(value || '');
   return text.length > 22 ? `${text.slice(0, 7)}…${text.slice(-7)}` : text;
 };
-const copyButton = (value) => value ? `<button class="copyBtn" type="button" data-copy="${String(value).replaceAll('"', '&quot;')}">Copy</button>` : '';
+const escapeAttr = (value) => String(value ?? '').replaceAll('"', '&quot;');
+const copyButton = (value) => value ? `<button class="copyBtn" type="button" data-copy="${escapeAttr(value)}">Copy</button>` : '';
 const log = (value) => { $('#log').textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
 const adminHeaders = () => {
   const password = localStorage.getItem('coin_dashboard_admin_password') || '';
@@ -21,7 +22,12 @@ const fill = (form, values) => {
     if (form.elements[key]) form.elements[key].value = value ?? '';
   }
 };
-const fact = (label, value, copy = false) => `<dt>${label}</dt><dd><span class="factValue">${value ?? '-'}</span>${copyButton(copy ? value : '')}</dd>`;
+const compactValue = (value) => {
+  const text = String(value ?? '-');
+  if (text.length <= 34) return text;
+  return `${text.slice(0, 12)}…${text.slice(-10)}`;
+};
+const fact = (label, value, copy = false) => `<dt>${label}</dt><dd><span class="factValue" title="${escapeAttr(value ?? '-')}">${copy ? compactValue(value) : (value ?? '-')}</span>${copyButton(copy ? value : '')}</dd>`;
 let state = null;
 function ensurePassword() {
   if (localStorage.getItem('coin_dashboard_admin_password')) return;
@@ -33,14 +39,14 @@ function paintSummary(meta) {
   $('#metricOwnerBalance').textContent = state.ownerBalance || '0';
   $('#metricRpc').textContent = short(state.rpc || '-');
   $('#networkBadge').textContent = /mainnet/i.test(state.network || '') ? 'MAINNET' : 'DEVNET';
-  $('#lastUpdated').textContent = `Update terakhir ${new Date().toLocaleString('id-ID')}`;
+  $('#lastUpdated').textContent = new Date().toLocaleString('id-ID');
   $('#tokenName').textContent = state.onchainMetadata?.name || meta.name || 'COin';
-  $('#tokenSymbol').textContent = `${state.onchainMetadata?.symbol || meta.symbol || '-'} · Balance ${state.ownerBalance || '0'}`;
+  $('#tokenSymbol').textContent = `${state.onchainMetadata?.symbol || meta.symbol || '-'} · ${state.network || 'Solana'}`;
 }
 function paintLogo(meta) {
   const logo = $('#tokenLogo');
   const fallback = $('#logoFallback');
-  fallback.textContent = state.onchainMetadata?.symbol || meta.symbol || 'COin';
+  fallback.textContent = state.onchainMetadata?.symbol || meta.symbol || 'CO';
   logo.hidden = true;
   logo.removeAttribute('src');
   logo.onerror = () => { logo.hidden = true; };
@@ -89,7 +95,7 @@ async function bind(formId, url, after = refresh) {
   const form = $(formId);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const button = form.querySelector('button');
+    const button = form.querySelector('button[type="submit"], button:not([type])');
     button.disabled = true;
     try {
       const result = await post(url, readForm(form));
